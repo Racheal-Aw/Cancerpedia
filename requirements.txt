@@ -1,4 +1,5 @@
 gdown
+openai
 streamlit
 llama_index
 openai
