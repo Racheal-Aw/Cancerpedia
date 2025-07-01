@@ -1,6 +1,9 @@
-gdown
 streamlit
+gdown
 llama-index
-groq
 huggingface-hub
+sentence-transformers
+transformers
+torch
+groq
 pandas
