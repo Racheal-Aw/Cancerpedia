@@ -1,8 +1,7 @@
 gdown
-openai
-streamlit
-llama_index
-openai
-transformers
-torch
-sentence-transformers
+streamlit==1.24.1
+llama_index==0.7.18
+transformers==4.28.1
+sentence-transformers==2.2.2
+torch==2.0.1
+
