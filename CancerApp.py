@@ -6,7 +6,7 @@ import streamlit as st
 
 import streamlit as st
 from llama_index.llms.openai import OpenAI
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from llama_index.embeddings import HuggingFaceEmbedding
 from llama_index.core import StorageContext, load_index_from_storage
 from llama_index.core.chat_engine import ContextChatEngine
 from llama_index.core.memory import ChatMemoryBuffer
