@@ -1,9 +1,7 @@
-streamlit
 gdown
-git+https://github.com/jerryjliu/llama_index.git@main
-huggingface-hub
-sentence-transformers
+streamlit
+llama_index
+openai
 transformers
 torch
-groq
-pandas
+sentence-transformers
