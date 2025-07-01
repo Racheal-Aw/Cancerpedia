@@ -1,6 +1,6 @@
 streamlit
 gdown
-llama-index
+git+https://github.com/jerryjliu/llama_index.git@main
 huggingface-hub
 sentence-transformers
 transformers
