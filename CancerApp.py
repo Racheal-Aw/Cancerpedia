@@ -16,7 +16,32 @@ llm = Groq(
     # token=st.secrets["GROQ_API_KEY"], # when you're running local
 )
 
+import gdown
+import zipfile
+import os
 
+# Google Drive file ID (replace with your own if needed)
+file_id = "1K6x4FU4A4aBIP7_agPKtLRXojtgbgoUq"
+zip_file = "embedding_model_cancer.zip"
+output_folder = "embedding_model_cancer"
+
+# Download the file if it doesn't exist
+if not os.path.exists(zip_file):
+    print("⬇️ Downloading model zip...")
+    gdown.download(f"https://drive.google.com/uc?id={file_id}", zip_file, quiet=False)
+else:
+    print("✅ Zip file already exists.")
+
+# Extract the zip if not already done
+if not os.path.exists(output_folder):
+    print("📦 Extracting model...")
+    with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+        zip_ref.extractall(output_folder)
+    os.remove(zip_file)
+    print(f"✅ Extracted to '{output_folder}/' and removed zip file.")
+else:
+    print("✅ Model already extracted.")
+    
 # embeddings
 embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
 embeddings_folder = "./embedding_model/"
@@ -28,7 +53,7 @@ embeddings = HuggingFaceEmbedding(
 
 # load Vector Database
 # allow_dangerous_deserialization is needed. Pickle files can be modified to deliver a malicious payload that results in execution of arbitrary code on your machine
-storage_context = StorageContext.from_defaults(persist_dir="content/vector_index_cancer")
+storage_context = StorageContext.from_defaults(persist_dir="vector_index")
 vector_index = load_index_from_storage(storage_context, embed_model=embeddings)
 
 # retriever
@@ -38,20 +63,20 @@ retriever = vector_index.as_retriever(similarity_top_k=2)
 prefix_messages = [
     ChatMessage(
         role=MessageRole.SYSTEM,
-        content="You are a kind and helpful chatbot having a conversation with a human."
+        content ="You are a kind and helpful chatbot having a conversation with a human."
     ),
     ChatMessage(
         role=MessageRole.SYSTEM,
         content=(
-            "You may use background information to improve your answers, "
-            "You may also answer new questions on unrelated topics if asked, "
-            "but do not say things like 'According to the text' or refer to any document. "
+            "You may use background information to improve your answers."
+            "You may also answer new questions on unrelated topics if asked."
+            "But do not say things like 'According to the text' or refer to any document. "
             "Answer naturally and directly, as if you're speaking from your own knowledge."
         )
     ),
     ChatMessage(
         role=MessageRole.SYSTEM,
-        content="Keep your answers short, clear, and conversational."
+        content ="Keep your answers short, clear, and conversational."
     ),
 ]
 
@@ -80,7 +105,7 @@ st.markdown("""
 
 Curious about cancer, treatments, or medical terms you've come across?  
 This chatbot is here to help you explore verified cancer education materials in plain language.  
-Whether you're a patient, caregiver, or just learning — you're in the right place.
+Whether you're a patient, caregiver, or just learning, you're in the right place.
 
 💡 *Try asking things like:*
 - "What is chemotherapy?"
