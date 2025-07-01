@@ -3,13 +3,14 @@ import gdown
 import zipfile
 import streamlit as st
 
-from llama_index.llms.groq import Groq
+
+import streamlit as st
+from llama_index.llms import OpenAI  # simpler, widely supported LLM
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import StorageContext, load_index_from_storage
 from llama_index.core.chat_engine import ContextChatEngine
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.base.llms.types import ChatMessage, MessageRole
-
 
 # --- 1. Download & unzip embedding model if needed ---
 
@@ -32,54 +33,57 @@ if not os.path.exists(output_folder):
 else:
     print("✅ Model already extracted.")
 
-
-# --- 2. Setup embedding and vector index ---
-
-embedding_model_name = "sentence-transformers/all-MiniLM-L6-v2"
-embedding_cache_folder = f"./{output_folder}/"
+# embeddings
+embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+embeddings_folder = "./embedding_model_cancer"  # make sure your local folder name matches here
 
 embeddings = HuggingFaceEmbedding(
-    model_name=embedding_model_name,
-    cache_folder=embedding_cache_folder,
+    model_name=embedding_model,
+    cache_folder=embeddings_folder,
 )
 
+# Load Vector Database
 storage_context = StorageContext.from_defaults(persist_dir="vector_index")
 vector_index = load_index_from_storage(storage_context, embed_model=embeddings)
 
+# Retriever
 retriever = vector_index.as_retriever(similarity_top_k=2)
 
-
-# --- 3. Setup LLM and Chat Engine ---
-
-model_name = "llama3-70b-8192"
-llm = Groq(
-    model=model_name,
-    # token=st.secrets["GROQ_API_KEY"],  # Uncomment and set if needed
-)
-
+# Prompt setup
 prefix_messages = [
-    ChatMessage(role=MessageRole.SYSTEM, content="You are a kind and helpful chatbot having a conversation with a human."),
-    ChatMessage(role=MessageRole.SYSTEM, content=(
-        "You may use background information to improve your answers. "
-        "You may also answer new questions on unrelated topics if asked. "
-        "But do not say things like 'According to the text' or refer to any document. "
-        "Answer naturally and directly, as if you're speaking from your own knowledge."
-    )),
-    ChatMessage(role=MessageRole.SYSTEM, content="Keep your answers short, clear, and conversational."),
+    ChatMessage(
+        role=MessageRole.SYSTEM,
+        content ="You are a kind and helpful chatbot having a conversation with a human."
+    ),
+    ChatMessage(
+        role=MessageRole.SYSTEM,
+        content =(
+            "You may use background information to improve your answers. "
+            "You may also answer new questions on unrelated topics if asked. "
+            "But do not say things like 'According to the text' or refer to any document. "
+            "Answer naturally and directly, as if you're speaking from your own knowledge."
+        )
+    ),
+    ChatMessage(
+        role=MessageRole.SYSTEM,
+        content ="Keep your answers short, clear, and conversational."
+    ),
 ]
 
+# Memory buffer
 memory = ChatMemoryBuffer.from_defaults()
 
+# Initialize LLM and Chat Engine with memory
 @st.cache_resource
 def init_bot():
+    llm = OpenAI()  # initialize the OpenAI LLM here
     return ContextChatEngine(
         llm=llm, retriever=retriever, memory=memory, prefix_messages=prefix_messages
     )
 
 rag_bot = init_bot()
 
-
-# --- 4. Streamlit UI ---
+##### Streamlit UI #####
 
 st.title("Cancerpedia Chat")
 st.caption("Your friendly, trustworthy cancer knowledge companion.")
@@ -91,20 +95,24 @@ Curious about cancer, treatments, or medical terms you've come across?
 This chatbot is here to help you explore verified cancer education materials in plain language.  
 Whether you're a patient, caregiver, or just learning, you're in the right place.
 
-💡 *Try asking things like:*  
-- "What is chemotherapy?"  
-- "How do cancer cells grow?"  
-- "What does BRCA1 mean?"  
+💡 *Try asking things like:*
+- "What is chemotherapy?"
+- "How do cancer cells grow?"
+- "What does BRCA1 mean?"
 
 📚 *Powered by a curated library of cancer education resources.*
 """)
 
-# Sidebar: Quick Search + FAQ
 with st.sidebar:
     st.markdown("## 🔍 Quick Search")
     search_input = st.text_input("Enter a keyword or topic")
 
+    if search_input:
+        st.info(f"Searching for: *{search_input}*")
+        st.session_state['user_input'] = search_input
+
     st.markdown("## 📌 Frequently Asked")
+
     faq_questions = [
         "What is cancer?",
         "How does immunotherapy work?",
@@ -129,43 +137,43 @@ with st.sidebar:
         "What are the potential side effects of cancer treatment?",
         "Are unexplained weight loss or fatigue signs of cancer?"
     ]
+
     selected_faq = st.selectbox("Select a common question:", [""] + faq_questions)
 
-    # Set session state input based on sidebar selections
-    if search_input:
-        st.info(f"Searching for: *{search_input}*")
-        st.session_state['user_input'] = search_input
-    elif selected_faq:
+    if selected_faq:
         st.info(f"You selected: *{selected_faq}*")
         st.session_state['user_input'] = selected_faq
 
-
-# --- 5. Display chat history ---
-
+# Display chat history
 for message in rag_bot.chat_history:
     with st.chat_message(message.role):
         st.markdown(message.blocks[0].text)
 
+# User input via chat box
+if prompt := st.chat_input("Curious minds wanted!"):
+    st.chat_message("human").markdown(prompt)
 
-# --- 6. Process user input from sidebar or chat input ---
-
-def process_user_message(user_text):
-    st.chat_message("human").markdown(user_text)
     with st.spinner("Know all about cancer..."):
-        answer = rag_bot.chat(user_text)
+        answer = rag_bot.chat(prompt)
+        response = answer.response
+
+        with st.chat_message("assistant"):
+            st.markdown(response)
+
+# React to FAQ selection
+if selected_faq:
+    st.chat_message("human").markdown(selected_faq)
+    with st.spinner("Know all about cancer..."):
+        answer = rag_bot.chat(selected_faq)
         response = answer.response
         with st.chat_message("assistant"):
             st.markdown(response)
 
-# Process sidebar input if available
-if 'user_input' in st.session_state and st.session_state['user_input']:
-    process_user_message(st.session_state['user_input'])
-    st.session_state['user_input'] = ""  # reset after processing
-
-# Process chat input box
-if prompt := st.chat_input("Curious minds wanted!"):
-    process_user_message(prompt)
-
-           
-
-           
+# React to quick search
+if search_input:
+    st.chat_message("human").markdown(search_input)
+    with st.spinner("Know all about cancer..."):
+        answer = rag_bot.chat(search_input)
+        response = answer.response
+        with st.chat_message("assistant"):
+            st.markdown(response)
